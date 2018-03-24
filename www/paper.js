@@ -178,4 +178,24 @@
       supporterCtx.commit();
     }, 10);
   };
+
+  workerContext.paper.lastFrame = async ({
+    callback,
+  } = {}) => {
+    const frame = await workerContext.paper.get('frame');
+    let xhr = new XMLHttpRequest();
+    xhr.open("GET", frame, true);
+    xhr.responseType = "arraybuffer";
+    xhr.addEventListener("load", function () {
+      if (xhr.status === 200) {
+        const imgArray = new Uint8ClampedArray(xhr.response);
+        if (imgArray) {
+          const imgData = new ImageData(imgArray, 1920, 1080);  // TODO: avoid hardcoded webcam size
+          if (callback) callback(imgData);
+        }
+      }
+      if (callback) callback();
+    }, false);
+    xhr.send();
+  };
 })(self);
