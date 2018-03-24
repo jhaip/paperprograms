@@ -55,6 +55,9 @@ function render() {
         localStorage.paperProgramsProgramsToRender = JSON.stringify(programs);
         render();
       }}
+      onVideoFrameUpdate={videoFrameDataURL => {
+        localStorage.lastVideoFrame = videoFrameDataURL;
+      }}
     />,
     element
   );

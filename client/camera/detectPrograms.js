@@ -398,6 +398,18 @@ export default function detectPrograms({ config, videoCapture, dataToRemember, d
     }
   });
 
+  const imgArray = new Uint8ClampedArray(videoMat.data);
+  // const imgData = new ImageData(imgArray, videoMat.cols, videoMat.rows);
+  // const blob = new Blob([imgData], { type: 'image/jpeg' });
+  console.log(`Cols: ${videoMat.cols}`);
+  console.log(`Rows: ${videoMat.rows}`);
+  const blob = new Blob([imgArray]);
+  const urlCreator = window.URL || window.webkitURL;
+  const videoFrameDataURL = urlCreator.createObjectURL(blob);
+  // TODO: clean up Blob() and call revokeObjectURL() on last frame's URL
+
+  console.log(videoFrameDataURL);
+
   videoMat.delete();
 
   return {
@@ -405,5 +417,6 @@ export default function detectPrograms({ config, videoCapture, dataToRemember, d
     programsToRender,
     dataToRemember: { vectorsBetweenCorners },
     framerate: Math.round(1000 / (Date.now() - startTime)),
+    videoFrameDataURL,
   };
 }

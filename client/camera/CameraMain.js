@@ -141,9 +141,10 @@ export default class CameraMain extends React.Component {
               zoom={this.props.config.zoom}
               config={this.props.config}
               onConfigChange={this.props.onConfigChange}
-              onProcessVideo={({ programsToRender, framerate }) => {
+              onProcessVideo={({ programsToRender, framerate, videoFrameDataURL }) => {
                 this.setState({ framerate });
                 this._programsChange(programsToRender);
+                this.props.onVideoFrameUpdate(videoFrameDataURL);
               }}
               allowSelectingDetectedPoints={this.state.selectedColorIndex !== -1}
               onSelectColor={color => {

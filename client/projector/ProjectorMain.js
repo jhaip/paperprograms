@@ -54,6 +54,7 @@ export default class ProjectorMain extends React.Component {
                 callback
               );
             }}
+            lastVideoFrame={this.props.lastVideoFrame}
           />
         ))}
       </div>

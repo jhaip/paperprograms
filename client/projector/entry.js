@@ -14,6 +14,7 @@ function render(callback) {
         localStorage.paperProgramsDataByProgramNumber = JSON.stringify(dataByProgramNumber);
         render(otherCallback);
       }}
+      lastVideoFrame={localStorage.lastVideoFrame}
     />,
     element,
     callback
