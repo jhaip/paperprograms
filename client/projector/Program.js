@@ -47,6 +47,7 @@ export default class Program extends React.Component {
     this.state = {
       canvasSizeByProgramNumber: {},
       showSupporterCanvasById: {},
+      frameCanvasByProgramNumber: {},
       iframe: null,
       debugData: { logs: [] },
     };
@@ -62,6 +63,32 @@ export default class Program extends React.Component {
   componentWillUnmount() {
     this._worker.terminate();
   }
+
+  _fetchFrame = (frame, programNumber) => {
+    xhr.get(frame, { responseType: 'arraybuffer' }, (err, resp, body) => {
+      if (err || resp.statusCode !== 200) {
+        console.error(err);
+        console.log(resp);
+      }
+      const imgArray = new Uint8ClampedArray(body);
+      if (imgArray) {
+        const imgData = new ImageData(imgArray, 1920, 1080); // TODO: avoid hardcoded webcam size
+        this.setState({
+          frameCanvasByProgramNumber: {
+            ...this.state.frameCanvasByProgramNumber,
+            [programNumber]: Object.assign(
+              {},
+              this.state.frameCanvasByProgramNumber[programNumber],
+              {
+                status: 'IMAGEDATA',
+                imgData: imgData,
+              }
+            ),
+          },
+        });
+      }
+    });
+  };
 
   _program = () => {
     return this.props.programsToRenderByNumber[this.props.programNumber];
@@ -125,6 +152,51 @@ export default class Program extends React.Component {
         this._worker.postMessage({ messageId, receiveData: { object: this.props.papers } });
       } else if (sendData.name === 'frame') {
         this._worker.postMessage({ messageId, receiveData: { object: this.props.lastVideoFrame } });
+      } else if (sendData.name === 'frameCanvas') {
+        const programNumber = sendData.data.number || 'default';
+
+        if (
+          this.state.frameCanvasByProgramNumber[programNumber] &&
+          this.state.frameCanvasByProgramNumber[programNumber].status !== 'FINISHED'
+        ) {
+          this._worker.postMessage({ messageId, receiveData: { object: null } });
+        } else {
+          this[`_frameCanvasAvailableCallback_${programNumber}`] = canvas => {
+            const { imgData } = this.state.frameCanvasByProgramNumber[programNumber];
+            const offscreen = canvas.transferControlToOffscreen();
+
+            this._worker.postMessage(
+              { messageId, receiveData: { object: { canvas: offscreen, imgData } } },
+              [offscreen]
+            );
+            delete this[`_frameCanvasAvailableCallback_${programNumber}`];
+            this.setState({
+              frameCanvasByProgramNumber: {
+                ...this.state.frameCanvasByProgramNumber,
+                [programNumber]: {
+                  status: 'FINISHED',
+                },
+              },
+            });
+          };
+          this.setState(
+            {
+              frameCanvasByProgramNumber: {
+                ...this.state.frameCanvasByProgramNumber,
+                [programNumber]: {
+                  width: sendData.data.width || defaultCanvasWidth,
+                  height:
+                    sendData.data.height ||
+                    (sendData.data.width ? sendData.data.width * paperRatio : defaultCanvasHeight),
+                  status: 'FETCH',
+                },
+              },
+            },
+            () => {
+              this._fetchFrame(this.props.lastVideoFrame, programNumber);
+            }
+          );
+        }
       }
     } else if (command === 'set') {
       if (sendData.name === 'data') {
@@ -227,6 +299,31 @@ export default class Program extends React.Component {
                 ),
                 transformOrigin: '0 0 0',
                 zIndex: programNumber == program.number ? 1 : 2,
+              }}
+            />
+          );
+        })}
+        {Object.keys(this.state.frameCanvasByProgramNumber).map(programNumber => {
+          const { width, height, status } = this.state.frameCanvasByProgramNumber[programNumber];
+
+          if (status !== 'IMAGEDATA') return null;
+
+          return (
+            <canvas
+              key="canvas"
+              ref={el => {
+                if (el && this[`_frameCanvasAvailableCallback_${programNumber}`]) {
+                  this[`_frameCanvasAvailableCallback_${programNumber}`](el);
+                }
+              }}
+              width={width}
+              height={height}
+              style={{
+                position: 'absolute',
+                left: 0,
+                top: 0,
+                width,
+                height,
               }}
             />
           );
